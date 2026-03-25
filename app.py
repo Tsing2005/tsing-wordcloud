@@ -9,7 +9,7 @@ import os
 import platform
 
 st.set_page_config(page_title="全格式词云生成器", layout="wide")
-st.title("☁️ 专业词云生成系统 (精准形状识别版)")
+st.title("☁️ wordcloud")
 
 # ================= 1. 环境准备函数 =================
 def get_default_font():
@@ -55,12 +55,48 @@ def process_mask_to_array(image, threshold=240):
 # ================= 2. 侧边栏：参数与模版选择 =================
 st.sidebar.header("🎨 设计面板")
 
-font_p = st.sidebar.text_input("字体路径", value=get_default_font())
+# ---------- 仅在此处修改：增加字体下拉选择功能 ----------
+fonts_dir = "fonts"
+if os.path.exists(fonts_dir):
+    font_files = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf', '.ttc'))]
+else:
+    font_files = []
+
+if font_files:
+    selected_font = st.sidebar.selectbox("选择字体：", font_files)
+    font_p = os.path.join(fonts_dir, selected_font)
+else:
+    st.sidebar.warning("⚠️ 未在 fonts 文件夹中检测到字体")
+    font_p = st.sidebar.text_input("字体路径", value=get_default_font())
+# --------------------------------------------------------
 
 st.sidebar.subheader("色彩方案")
 bg_color = st.sidebar.color_picker("1. 画布外部背景", "#FFFFFF")
 shape_inner_color = st.sidebar.color_picker("2. 形状内部底色", "#FDF5E6") # 默认换成适合星星的米黄色
-text_colormap = st.sidebar.selectbox("3. 文字颜色主题", ["viridis", "Set1", "plasma", "Dark2", "spring", "magma"])
+
+# ----------------- 增加颜色选项与色谱显示 -----------------
+# 在您原有的选项基础上增加了 coolwarm 和 rainbow
+color_options = ["viridis", "Set1", "plasma", "Dark2", "spring", "magma", "coolwarm", "rainbow"]
+text_colormap = st.sidebar.selectbox("3. 文字颜色主题", color_options)
+
+# 对应主题的 CSS 渐变色字典
+colormap_gradients = {
+    "viridis": "linear-gradient(to right, #440154, #31688e, #35b779, #fde725)",
+    "Set1": "linear-gradient(to right, #e41a1c, #377eb8, #4daf4a, #984ea3, #ff7f00)",
+    "plasma": "linear-gradient(to right, #0d0887, #9c179e, #ed7953, #f0f921)",
+    "Dark2": "linear-gradient(to right, #1b9e77, #d95f02, #7570b3, #e7298a, #66a61e)",
+    "spring": "linear-gradient(to right, #ff00ff, #ffff00)",
+    "magma": "linear-gradient(to right, #000004, #51127c, #b73779, #fc8961, #fcfdbf)",
+    "coolwarm": "linear-gradient(to right, #3b4cc0, #dddddd, #b40426)",
+    "rainbow": "linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff)"
+}
+
+# 渲染色谱条
+st.sidebar.markdown(
+    f'<div style="width: 100%; height: 12px; border-radius: 4px; background: {colormap_gradients[text_colormap]}; margin-top: -12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>',
+    unsafe_allow_html=True
+)
+# --------------------------------------------------------
 
 st.sidebar.subheader("图形模版识别")
 # 新增：让用户可以微调抠图算法的敏感度
@@ -90,7 +126,7 @@ else:
         st.sidebar.image(mask_image_to_use, caption="上传成功", width=120)
 
 # ================= 3. 主界面逻辑 =================
-text_area = st.text_area("输入文字内容：", height=150, value="星星 图像识别 算法 修复 RGB 抠图 颜色距离 词云 填充 完美 自动化 WebP 解决 内部空洞 智能 渲染")
+text_area = st.text_area("输入文字内容：", height=150, value="Ageing is accompanied by declining memory function, with extremely heterogeneous manifestation in the human population1. Brain-extrinsic factors influencing cognitive decline, such as gastrointestinal signals, have emerged as attractive targets for peripheral interventions2,3,4,5,6, but the underlying mechanisms remain largely unclear. Here, by charting a high-resolution map of microbiome ageing and its functional consequences throughout the lifespan of mice, we identify a mechanism by which inhibition of gut–brain signalling during ageing results in impaired neuronal activation in the hippocampus and loss of memory encoding. Specifically, accumulation of gut bacteria that produce medium-chain fatty acids, such as Parabacteroides goldsteinii, can drive peripheral myeloid cell inflammation through GPR84 signalling. As a result, the function of vagal afferent neurons is impaired, the interoceptive signal received by the brain is weakened and hippocampal function declines. We leverage this pathway to define interventions that enhance memory in aged mice, such as phage targeting of Parabacteroides, GPR84 inhibition and restoration of vagal activity. These findings indicate a key role for interoceptive dysfunction in brain ageing and suggest that interoceptomimetics that stimulate gut–brain communication may counteract age-associated cognitive decline.")
 
 if text_area:
     seg_list = jieba.lcut(text_area)
@@ -100,7 +136,14 @@ if text_area:
         st.info("等待输入文本...")
         st.stop()
 
-    words_to_show = st.multiselect("筛选词汇：", options=list(counts.keys()), default=list(counts.keys())[:50])
+    # ----------------- 增加 format_func 显示词频 -----------------
+    words_to_show = st.multiselect(
+        "筛选词汇：", 
+        options=list(counts.keys()), 
+        default=list(counts.keys())[:50],
+        format_func=lambda w: f"{w} ({counts[w]})"
+    )
+    # --------------------------------------------------------
 
     if st.button("🚀 生成高清词云"):
         if not words_to_show:
