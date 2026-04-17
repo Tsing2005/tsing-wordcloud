@@ -130,20 +130,23 @@ text_area = st.text_area("输入文字内容：", height=150, value="Ageing is a
 
 if text_area:
     seg_list = jieba.lcut(text_area)
-    counts = dict(Counter([w for w in seg_list if len(w) > 1 and w.strip()]))
+    # 【修改点：按照词频从大到小进行排序】
+    counts = dict(Counter([w for w in seg_list if len(w) > 1 and w.strip()]).most_common())
     
     if not counts:
         st.info("等待输入文本...")
         st.stop()
 
-    # ----------------- 增加 format_func 显示词频 -----------------
+    # ----------------- 【修改点：增加展示数量选择与排序显示】 -----------------
+    max_words = st.slider("选择展示词语的数量：", min_value=1, max_value=len(counts), value=min(50, len(counts)))
+    
     words_to_show = st.multiselect(
         "筛选词汇：", 
         options=list(counts.keys()), 
-        default=list(counts.keys())[:50],
+        default=list(counts.keys())[:max_words],
         format_func=lambda w: f"{w} ({counts[w]})"
     )
-    # --------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     if st.button("🚀 生成高清词云"):
         if not words_to_show:
